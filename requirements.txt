@@ -1,0 +1,16 @@
+numpy
+PyPDF2
+python-dotenv
+requests
+
+# کتابخانه‌های مربوط به پردازش صوت
+speechrecognition
+pyaudio
+
+# کتابخانه‌های مربوط به تبدیل متن به گفتار
+gtts
+playsound
+
+# کتابخانه‌های مربوط به وب‌اسکرپینگ
+beautifulsoup4
+lxml
