@@ -3,6 +3,7 @@ from listening_and_speaking.speech_to_text import SpeechRecognizer
 from listening_and_speaking.text_to_speech import TextToSpeech
 from search_pdf.pdf_search import PDFSearcher
 from request_ollama.ollama_api import OllamaAPI
+from web_scraping.web_searcher import WebSearcher  # اضافه کردن WebSearcher
 import re
 from dotenv import load_dotenv  # اضافه کردن ماژول dotenv
 import os
@@ -17,6 +18,7 @@ class ChatBot:
         self.speech_recognizer = SpeechRecognizer()
         self.text_to_speech = TextToSpeech()
         self.pdf_searcher = None
+        self.web_searcher = WebSearcher()  # نمونه‌ای از WebSearcher برای جستجوی وب
         self.search_mode = "pdf"  # حالت پیش‌فرض: جستجو در PDF
         # تعریف مجموعه حروف فارسی
         self.persian_chars = set('ابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی')
@@ -85,9 +87,12 @@ class ChatBot:
                     print("لطفاً بررسی کنید که فایل PDF حاوی متن قابل استخراج باشد.")
             elif self.search_mode == "web":
                 print("\nجستجو در وب...")
-                context = self.pdf_searcher.web_searcher.search(prompt)
+                context = self.web_searcher.search(prompt)  # استفاده از WebSearcher
                 if context:
-                    print("\nنتایج مرتبط از وب یافت شد.")
+                    print("\nنتایج مرتبط از وب یافت شد:")
+                    print("-" * 50)
+                    print(context)  # فقط متن مرتبط چاپ می‌شود
+                    print("-" * 50)
                 else:
                     print("\nنتیجه مرتبطی در وب یافت نشد.")
             
