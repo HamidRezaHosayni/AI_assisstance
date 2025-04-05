@@ -36,7 +36,7 @@ class OllamaAPI:
                 "options": options
             }
             
-            response = requests.post(self.generate_url, json=payload)
+            response = requests.post(self.generate_url, json=payload)  # حذف پروکسی و SSLContext
             response.raise_for_status()
             
             result = response.json()
