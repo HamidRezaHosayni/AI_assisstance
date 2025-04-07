@@ -8,6 +8,7 @@ from web_scraping.web_searcher import WebSearcher
 from request_ollama.openrouter_api import OpenRouterAPI
 from utils.text_processing import TextProcessor
 from utils.environment import Environment
+from tools.tool_manager import ToolManager
 
 
 class ChatBot:
@@ -19,6 +20,7 @@ class ChatBot:
         self.online_api_key = Environment.get_env_variable("ONLINE_API_KEY")
         self.online_model_url = Environment.get_env_variable("ONLINE_MODEL_URL")
         self.system_prompt = Environment.get_env_variable("SYSTEM_PROMPT", "شما یک دستیار هوشمند فارسی هستید. لطفاً به فارسی پاسخ دهید.")
+        self.SYSTEM_USER = Environment.get_env_variable("SYSTEM_USER", "کاربر از سیستم لینوکس استفاده میکند.")
 
         # بررسی متغیرهای محیطی
         if not self.online_model:
@@ -35,6 +37,7 @@ class ChatBot:
         self.pdf_searcher = None
         self.web_searcher = WebSearcher()
         self.search_mode = "pdf"
+        self.tool_manager = ToolManager()  # اضافه کردن مدیریت ابزار
 
         # راه‌اندازی جستجوگر PDF اگر مسیر مشخص شده باشد
         if pdf_path:
@@ -52,6 +55,18 @@ class ChatBot:
             self.openrouter_api = OpenRouterAPI(api_key=self.online_api_key, base_url=self.online_model_url)
         else:
             self.openrouter_api = None
+
+    def log_response(self, response: str):
+        """
+        لاگ گرفتن از پاسخ مدل در یک فایل متنی
+        """
+        try:
+            log_file = "model_responses.log"
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(f"پاسخ مدل:\n{response}\n{'='*50}\n")
+            print(f"✅ پاسخ مدل در فایل {log_file} ذخیره شد.")
+        except Exception as e:
+            print(f"⚠️ خطا در ذخیره پاسخ مدل: {e}")
 
     def send_request(self, prompt: str) -> None:
         try:
@@ -93,7 +108,7 @@ class ChatBot:
 
             # ساخت پرامپت با توجه به متن مرتبط
             if context:
-                full_prompt = f"{self.system_prompt}\n\nمتن مرتبط با سوال شما:\n{context}\n\nUser: {prompt}\nAssistant:"
+                full_prompt = f"{self.system_prompt}{self.SYSTEM_USER}\n\nمتن مرتبط با سوال شما:\n{context}\n\nUser: {prompt}\nAssistant:"
 
                 print("\nپرامپت کامل ارسال شده به مدل:")
                 print("-" * 50)
@@ -119,14 +134,27 @@ class ChatBot:
                 else:
                     response = "مدل آنلاین در دسترس نیست یا کلید API تنظیم نشده است."
 
-                # پاک‌سازی پاسخ از کاراکترهای غیرمجاز
-                if response and response != "سرور Ollama در دسترس نیست.":
+                # لاگ گرفتن از پاسخ مدل
+                self.log_response(response)
+
+                # بررسی پاسخ برای دستورات ابزار
+                if "%%" in response:
+                    print("\nپاسخ شامل دستور ابزار است. ارسال به مدیریت ابزار...")
+                    results = self.tool_manager.process_response(response)
+
+                    if "موفقیت" in results:
+                        print("\n✅ دستورات با موفقیت اجرا شدند.")
+                        self.text_to_speech.speak("دستورات با موفقیت اجرا شدند.")
+                    else:
+                        print("\n❌ مشکلی در اجرای دستورات وجود داشت.")
+                        self.text_to_speech.speak("مشکلی در اجرای دستورات وجود داشت.")
+                else:
+                    # پاک‌سازی پاسخ از کاراکترهای غیرمجاز و پخش آن
                     cleaned_response = TextProcessor.clean_response(response)
                     print("\nپاسخ دریافت شد. در حال پخش...")
                     print(f"پاسخ: {cleaned_response}")
                     self.text_to_speech.speak(cleaned_response)
-                else:
-                    print("\nخطا: پاسخ نامعتبر از سرور دریافت شد یا سرور در دسترس نیست.")
+
             else:
                 print("\nهیچ متن مرتبطی برای ارسال به مدل یافت نشد.")
 

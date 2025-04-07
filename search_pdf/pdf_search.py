@@ -40,7 +40,8 @@ class PDFSearcher:
                     sentences = [s.strip() for s in text.split('.') if s.strip()]
                     current_chunk = ""
                     for sentence in sentences:
-                        if len(current_chunk) + len(sentence) < 500:
+                        # بازگرداندن محدودیت طول متن در هر بخش به 1000 کاراکتر
+                        if len(current_chunk) + len(sentence) < 1000:
                             current_chunk += " " + sentence
                         else:
                             chunks.append({'text': current_chunk.strip(), 'page': page_num})
@@ -119,10 +120,10 @@ class PDFSearcher:
         """
         دریافت متن مرتبط با سوال کاربر با محدود کردن تعداد کاراکترهای خروجی
         """
-        results = self.search(query, pdf_name, top_k=5, similarity_threshold=0.7)  # مقدار شباهت تنظیم شده
+        results = self.search(query, pdf_name, top_k=5, similarity_threshold=0.7)
 
         context = ""
-        total_chars = 0  # شمارش تعداد کاراکترها برای جلوگیری از ارسال بیش از حد داده
+        total_chars = 0
 
         if results:
             print("\nمتن‌های مرتبط یافت شده:")
@@ -130,17 +131,17 @@ class PDFSearcher:
                 text_chunk = result['context']
                 similarity = result['similarity']
 
-                if total_chars + len(text_chunk) <= max_chars:  # بررسی محدودیت
+                if total_chars + len(text_chunk) <= max_chars:
                     context += text_chunk + "\n"
                     total_chars += len(text_chunk)
 
-                    print(f"📌 متن مرتبط (Similarity: {similarity:.2f}): {text_chunk[:100]}...")  # نمایش پیش‌نمایش
+                    print(f"📌 متن مرتبط (Similarity: {similarity:.2f}): {text_chunk[:100]}...")
                 else:
                     break
         else:
             print("\n⚠️ نتیجه مرتبطی یافت نشد.")
 
-        return context.strip()  # حذف فاصله‌های اضافی و بازگشت فقط متن‌های مهم
+        return context.strip()
 
     @staticmethod
     def _cosine_similarity(vec1, vec2):
