@@ -21,7 +21,7 @@ class OpenRouterAPI:
         """
         ارسال درخواست به OpenRouter API و دریافت پاسخ
         Args:
-            messages: لیست پیام‌ها شامل system, user, و assistant
+            messages: لیست پیام‌ها شامل system, user، و assistant
             model: نام مدل (مثلاً: deepseek/deepseek-v3-base:free)
         Returns:
             str: پاسخ تولیدشده توسط مدل
@@ -30,13 +30,13 @@ class OpenRouterAPI:
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost",  # دلخواه
+                "HTTP-Referer": "http://localhost",
                 "X-Title": "MyChatbot"
             }
 
             payload = {
                 "model": model,
-                "messages": messages  # استفاده از messages به جای prompt
+                "messages": messages  # ارسال تاریخچه مکالمه
             }
 
             url = f"{self.base_url}/chat/completions"

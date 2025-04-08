@@ -38,6 +38,7 @@ class ChatBot:
         self.web_searcher = WebSearcher()
         self.search_mode = "pdf"
         self.tool_manager = ToolManager()  # اضافه کردن مدیریت ابزار
+        self.conversation_history = []  # اضافه کردن لیست برای ذخیره تاریخچه مکالمه
 
         # راه‌اندازی جستجوگر PDF اگر مسیر مشخص شده باشد
         if pdf_path:
@@ -106,57 +107,66 @@ class ChatBot:
                 else:
                     print("\nنتیجه مرتبطی در وب یافت نشد.")
 
-            # ساخت پرامپت با توجه به متن مرتبط
+            # اضافه کردن پیام کاربر به تاریخچه مکالمه
+            self.conversation_history.append({"role": "user", "content": prompt})
+
+            # محدود کردن تاریخچه مکالمه به ۵ پیام آخر
+            limited_history = self.conversation_history[-5:]
+
+            # ساخت پیام‌ها با توجه به تاریخچه محدودشده
+            messages = [{"role": "system", "content": self.system_prompt}]
             if context:
-                full_prompt = f"{self.system_prompt}{self.SYSTEM_USER}\n\nمتن مرتبط با سوال شما:\n{context}\n\nUser: {prompt}\nAssistant:"
+                messages.append({"role": "system", "content": f"متن مرتبط با سوال شما:\n{context}"})
+            messages.extend(limited_history)
 
-                print("\nپرامپت کامل ارسال شده به مدل:")
-                print("-" * 50)
-                print(full_prompt)
-                print("-" * 50)
+            print("\nپرامپت کامل ارسال شده به مدل:")
+            print("-" * 50)
+            for msg in messages:
+                print(f"{msg['role']}: {msg['content']}")
+            print("-" * 50)
 
-                print("\nدر حال دریافت پاسخ از مدل...")
-                if self.current_model == "ollama":
-                    response = self.ollama_api.generate_response(
-                        prompt=full_prompt,
-                        model=self.model,
-                        options={
-                            "temperature": 0.3,
-                            "top_p": 0.9,
-                            "num_predict": 1000
-                        }
-                    )
-                elif self.current_model == "online":
-                    response = self.generate_response_online(
-                        prompt=full_prompt,
-                        model=self.online_model
-                    )
-                else:
-                    response = "مدل آنلاین در دسترس نیست یا کلید API تنظیم نشده است."
-
-                # لاگ گرفتن از پاسخ مدل
-                self.log_response(response)
-
-                # بررسی پاسخ برای دستورات ابزار
-                if "%%" in response:
-                    print("\nپاسخ شامل دستور ابزار است. ارسال به مدیریت ابزار...")
-                    results = self.tool_manager.process_response(response)
-
-                    if "موفقیت" in results:
-                        print("\n✅ دستورات با موفقیت اجرا شدند.")
-                        self.text_to_speech.speak("دستورات با موفقیت اجرا شدند.")
-                    else:
-                        print("\n❌ مشکلی در اجرای دستورات وجود داشت.")
-                        self.text_to_speech.speak("مشکلی در اجرای دستورات وجود داشت.")
-                else:
-                    # پاک‌سازی پاسخ از کاراکترهای غیرمجاز و پخش آن
-                    cleaned_response = TextProcessor.clean_response(response)
-                    print("\nپاسخ دریافت شد. در حال پخش...")
-                    print(f"پاسخ: {cleaned_response}")
-                    self.text_to_speech.speak(cleaned_response)
-
+            print("\nدر حال دریافت پاسخ از مدل...")
+            if self.current_model == "ollama":
+                response = self.ollama_api.generate_response(
+                    prompt="\n".join([f"{msg['role']}: {msg['content']}" for msg in messages]),
+                    model=self.model,
+                    options={
+                        "temperature": 0.3,
+                        "top_p": 0.9,
+                        "num_predict": 1000
+                    }
+                )
+            elif self.current_model == "online":
+                response = self.generate_response_online(
+                    messages=messages,
+                    model=self.online_model
+                )
             else:
-                print("\nهیچ متن مرتبطی برای ارسال به مدل یافت نشد.")
+                response = "مدل آنلاین در دسترس نیست یا کلید API تنظیم نشده است."
+
+            # اضافه کردن پاسخ مدل به تاریخچه مکالمه
+            self.conversation_history.append({"role": "assistant", "content": response})
+
+            # لاگ گرفتن از پاسخ مدل
+            self.log_response(response)
+
+            # بررسی پاسخ برای دستورات ابزار
+            if "%%" in response:
+                print("\nپاسخ شامل دستور ابزار است. ارسال به مدیریت ابزار...")
+                results = self.tool_manager.process_response(response)
+
+                if "موفقیت" in results:
+                    print("\n✅ دستورات با موفقیت اجرا شدند.")
+                    self.text_to_speech.speak("دستورات با موفقیت اجرا شدند.")
+                else:
+                    print("\n❌ مشکلی در اجرای دستورات وجود داشت.")
+                    self.text_to_speech.speak("مشکلی در اجرای دستورات وجود داشت.")
+            else:
+                # پاک‌سازی پاسخ از کاراکترهای غیرمجاز و پخش آن
+                cleaned_response = TextProcessor.clean_response(response)
+                print("\nپاسخ دریافت شد. در حال پخش...")
+                print(f"پاسخ: {cleaned_response}")
+                self.text_to_speech.speak(cleaned_response)
 
         except Exception as e:
             print(f"\nخطای ناشناخته: {e}")
@@ -179,11 +189,11 @@ class ChatBot:
             self.search_mode = "pdf"
             print("\nحالت جستجو به حالت PDF تغییر کرد.")
 
-    def generate_response_online(self, prompt: str, model: str = None) -> str:
+    def generate_response_online(self, messages: list, model: str = None) -> str:
         """
         ارسال درخواست به مدل آنلاین OpenRouter
         Args:
-            prompt: متن ورودی
+            messages: لیست پیام‌ها شامل تاریخچه مکالمه
             model: نام مدل OpenRouter (اگر None باشد، از ONLINE_MODEL_NAME استفاده می‌شود)
         Returns:
             str: پاسخ مدل
@@ -193,12 +203,6 @@ class ChatBot:
 
         # استفاده از مدل پیش‌فرض اگر مدل مشخص نشده باشد
         model = model or self.online_model
-
-        # تبدیل prompt به ساختار messages مناسب برای OpenRouter
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": prompt}
-        ]
 
         return self.openrouter_api.generate_response(messages, model)
 
